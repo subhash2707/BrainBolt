@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  mongo:
+    image: mongo:7.0
+    container_name: adaptive-quiz-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - quiz-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: adaptive-quiz-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - quiz-network
+
+  backend:
+    build: ./backend
+    container_name: adaptive-quiz-backend
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      - MONGODB_URI=mongodb://mongo:27017/adaptive-quiz
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - JWT_SECRET=adaptive-quiz-secret-key-2024-change-in-production
+      - JWT_EXPIRES_IN=7d
+      - NODE_ENV=development
+    depends_on:
+      - mongo
+      - redis
+    networks:
+      - quiz-network
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+
+  frontend:
+    build: ./frontend
+    container_name: adaptive-quiz-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_URL=http://localhost:5000
+    depends_on:
+      - backend
+    networks:
+      - quiz-network
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+networks:
+  quiz-network:
+    driver: bridge
+
+volumes:
+  mongo-data:
